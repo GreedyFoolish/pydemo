@@ -1,0 +1,16 @@
+[project]
+name = "pydemo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "GreedyFoolish", email = "1158984036@qq.com" }
+]
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+    "package/*",
+    "app/*",
+]

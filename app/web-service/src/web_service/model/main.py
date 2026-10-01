@@ -2,6 +2,8 @@ import asyncio
 from sqlalchemy import text
 from web_service.model.engine import get_engine
 
+"""拉取代码配置好 .env 文件后，根目录运行 uv sync --project web-service 命令，即可直接进行数据库连接测试，确保数据库配置正确。"""
+
 
 async def test_connection():
     engine = get_engine()

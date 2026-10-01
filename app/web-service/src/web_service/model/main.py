@@ -10,6 +10,7 @@ from web_service.model.sku import Sku
 from web_service.model.test.raw_sql import test_raw_sql
 from web_service.model.test.sql_expression import test_sql_expression
 from web_service.model.test.session_maker import test_session_maker
+from web_service.model.test.orm import test_orm
 
 
 async def init_db():
@@ -41,7 +42,8 @@ async def main():
     # await test_connection()
     # await test_raw_sql()
     # await test_sql_expression()
-    await test_session_maker()
+    # await test_session_maker()
+    await test_orm()
 
 
 # 运行异步函数

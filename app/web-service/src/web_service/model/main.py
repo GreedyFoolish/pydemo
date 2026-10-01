@@ -7,7 +7,8 @@ from web_service.model.base import Base
 from web_service.model.category import Category
 from web_service.model.product import Product
 from web_service.model.sku import Sku
-from web_service.model.raw_sql import test_raw_sql
+from web_service.model.test.raw_sql import test_raw_sql
+from web_service.model.test.sql_expression import test_sql_expression
 
 
 async def init_db():
@@ -37,7 +38,8 @@ async def test_connection():
 async def main():
     await init_db()
     # await test_connection()
-    await test_raw_sql()
+    # await test_raw_sql()
+    await test_sql_expression()
 
 
 # 运行异步函数

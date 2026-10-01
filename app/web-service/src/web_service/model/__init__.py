@@ -21,3 +21,9 @@ docker run -d
 
 创建 postgres 和 pgadmin4 容器成功后，启动容器（此时默认开启），然后访问 http://localhost:5050 进行数据库连接，进行数据库创建操作
 """
+
+from web_service.model import (
+    category,
+    product,
+    sku,
+)

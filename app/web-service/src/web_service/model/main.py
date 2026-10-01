@@ -7,11 +7,13 @@ from web_service.model.base import Base
 from web_service.model.category import Category
 from web_service.model.product import Product
 from web_service.model.sku import Sku
+from web_service.model.raw_sql import test_raw_sql
 
 
 async def init_db():
     engine = get_engine()
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     print("数据库表创建完成")
 
@@ -34,7 +36,8 @@ async def test_connection():
 
 async def main():
     await init_db()
-    await test_connection()
+    # await test_connection()
+    await test_raw_sql()
 
 
 # 运行异步函数

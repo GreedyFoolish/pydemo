@@ -18,7 +18,7 @@
 """
 
 from sqlalchemy import text
-from web_service.model.engine import get_engine
+from web_service.core.database import get_engine
 
 
 async def raw_sql_insert():

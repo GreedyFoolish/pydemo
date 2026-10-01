@@ -27,7 +27,7 @@ Core 表达式语言是 SQLAlchemy 介于 ORM 和原生 SQL 之间的查询构�
 """
 
 from sqlalchemy import select, insert, update, delete
-from web_service.model.engine import get_engine
+from web_service.core.database import get_engine
 from web_service.model.category import Category
 from web_service.model.product import Product
 

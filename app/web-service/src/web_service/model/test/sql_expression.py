@@ -1,3 +1,31 @@
+"""
+SQL 表达式示例模块，展示如何使用 SQLAlchemy 的 Core 表达式语言进行数据库操作。
+
+Core 表达式语言是 SQLAlchemy 介于 ORM 和原生 SQL 之间的查询构建方式：
+- 比原生 SQL 更安全：自动参数化，无注入风险
+- 比 ORM 更灵活：直接操作表和列，不受对象映射约束
+
+本模块提供了以下功能：
+- 使用 Core 表达式插入数据。
+- 使用 Core 表达式查询数据。
+- 使用 Core 表达式更新数据。
+- 使用 Core 表达式删除数据。
+
+适用场景：
+- 需要复杂查询（如多表联查、聚合）但不想写原生 SQL 时。
+- 需要细粒度控制 SQL 生成，但又想利用 SQLAlchemy 的跨方言适配能力时。
+
+优点：
+- 类型化：Core 表达式语言提供了类型化的查询构建方式，减少了 SQL 注入风险。
+- 更接近 SQL：Core 表达式语言提供了类似 SQL 的操作方式，便于理解和使用。
+- 安全性：Core 表达式语言自动处理参数化查询，减少 SQL 注入风险。
+
+缺点：
+- 学习曲线：需同时理解 SQL 概念和 Core 的 API 语法。
+- 代码量：相比 ORM，Core 表达式语言可能需要编写更多的代码来实现相同的功能。
+- 无对象映射：返回的是 Row 对象，不具备 ORM 模型的便利性。
+"""
+
 from sqlalchemy import select, insert, update, delete
 from web_service.model.engine import get_engine
 from web_service.model.category import Category

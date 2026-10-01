@@ -2,7 +2,7 @@
 
 import asyncio
 from sqlalchemy import text
-from web_service.model.engine import get_engine
+from web_service.core.database import get_engine
 from web_service.model.base import Base
 from web_service.model.category import Category
 from web_service.model.product import Product

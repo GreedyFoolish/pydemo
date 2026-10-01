@@ -14,19 +14,11 @@ Session 工厂示例，展示了三种不同的 Session 使用方式：
 - 事务管理：根据业务需求选择手动或自动提交事务，确保数据一致性。
 """
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from sqlalchemy import select, insert
-from web_service.model.engine import get_engine
+from sqlalchemy import insert
+from web_service.core.database import get_session_factory
 from web_service.model.product import Product
 
-session_factory = async_sessionmaker(
-    # 使用 get_engine() 获取数据库引擎
-    get_engine(),
-    # 指定使用异步 Session 类
-    class_=AsyncSession,
-    # 设置为 False，避免在提交后过期对象
-    expire_on_commit=False,
-)
+session_factory = get_session_factory()
 
 
 async def insert_with_session():

@@ -6,8 +6,6 @@
 确保每次抛出都保留底层原始异常用于追溯。
 """
 
-from __future__ import annotations
-
 from web_service.exception.base import BusinessException
 from web_service.exception.codes import ErrorCode
 
@@ -32,11 +30,11 @@ class DatabaseException(BusinessException):
 
     def __init__(
         self,
-        error_code: ErrorCode,
+        error_code: ErrorCode | None = ErrorCode.VALIDATION_ERROR,
         message: str | None = None,
         *,
         detail: str = "",
-        original_error: Exception,
+        original_error: Exception | None = None,
     ) -> None:
         """构造数据库异常。
 

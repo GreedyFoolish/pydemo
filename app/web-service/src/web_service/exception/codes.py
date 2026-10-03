@@ -45,12 +45,21 @@ class ErrorCode(Enum):
         """返回业务码字符串，方便 f-string 直接使用。"""
         return self.code
 
-    # —— 通用业务错误 ——
+    # —— 通用 4xx 客户端错误 ——
     BAD_REQUEST = ("400001", 400, "请求参数不合法")
-    NOT_FOUND = ("404001", 404, "资源不存在")
-    FORBIDDEN = ("403001", 403, "无权限访问")
     UNAUTHORIZED = ("401001", 401, "未认证或认证已过期")
+    FORBIDDEN = ("403001", 403, "无权限访问")
+    NOT_FOUND = ("404001", 404, "资源不存在")
+    METHOD_NOT_ALLOWED = ("405001", 405, "请求方法不允许")
+    CONFLICT = ("409001", 409, "资源冲突")
     VALIDATION_ERROR = ("422001", 422, "数据校验错误")
+    RATE_LIMITED = ("429001", 429, "请求过于频繁")
+
+    # —— 通用 5xx 服务端错误 ——
+    INTERNAL_ERROR = ("500001", 500, "服务器内部错误")
+    BAD_GATEWAY = ("502001", 502, "网关错误")
+    SERVICE_UNAVAILABLE = ("503001", 503, "服务暂不可用")
+    GATEWAY_TIMEOUT = ("504001", 504, "网关超时")
 
     # —— 数据库错误 ——
     DB_UNIQUE_CONFLICT = ("500101", 409, "数据唯一约束冲突")

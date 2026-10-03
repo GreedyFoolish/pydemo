@@ -13,7 +13,5 @@ app = FastAPI(
 )
 
 from web_service.api.welcome import router as welcome_router
-from web_service.api.items import router as item_router
 
 app.include_router(welcome_router)
-app.include_router(item_router)

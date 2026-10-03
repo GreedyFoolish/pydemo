@@ -62,5 +62,5 @@ class SkuResponseDetail(BaseSchema):
     stock: int = 0
     attrs: dict[str, Any]
     image_url: str
-    # 使用字符串前向引用避免循环导入
-    product: "ProductResponse" | None = None
+    # 使用字符串前向引用避免循环导入（整个联合类型包在引号内）
+    product: "ProductResponse | None" = None

@@ -1,18 +1,18 @@
-首先，运行下面命令增加`alembic`和`psycopg2-binary`依赖。
+首先，运行下面命令增加 `alembic`和 `psycopg2-binary`依赖。
 
 ```
 # 安装 alembic 和 psycopg2-binary 依赖
 uv add --package web-service alembic==1.18.4 psycopg2-binary==2.9.12
 ```
 
-进入`/app/web-service`目录，运行下面命令初始化数据库迁移。
+进入 `/app/web-service`目录，运行下面命令初始化数据库迁移。
 
 ````
 # 初始化数据库迁移
 uv run alembic init migrations
 ````
 
-初始化完成后，对`env.py`文件进行调整，实现数据库迁移逻辑代码。
+初始化完成后，对 `env.py`文件进行调整，实现数据库迁移逻辑代码。
 
 完成数据库迁移逻辑代码后，执行生成迁移脚本命令。
 
@@ -27,3 +27,19 @@ make db-upgrade
 make db-downgrade version=-1         # 回退一步
 make db-downgrade version=abc123     # 回退到指定版本
 ```
+
+禁止行为
+
+1. 手动修改数据库
+2. 修改已执行过的迁移
+
+**注意**：`迁移脚本执行完 == 本地数据库的最新状态 == 生产数据库的最新状态`
+
+日常开发
+
+* 改动模型
+* 生成迁移脚本
+* 审查迁移脚本（可使用AI）
+  - 是否会导致数据丢失
+  - 回滚和迁移是否互逆
+* 执行迁移

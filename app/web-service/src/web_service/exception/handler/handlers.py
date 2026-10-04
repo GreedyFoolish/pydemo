@@ -2,11 +2,11 @@
 FastAPI 全局异常处理器。
 
 将 Python 异常（项目自定义 BusinessException 及第三方框架异常）
-统一转换为结构化 JSON 响应，保证 API 错误输出格式一致。
+统一转换为与中间件一致的响应格式 {code, data, message, request_id}。
 
 编排职责：
-1. BusinessException → 直接使用自身的 error_code / message / detail
-2. 第三方异常 → 通过 mapping.resolve_error_code() 查 ErrorCode，extractors.extract_message / extract_detail 提取可读信息
+1. BusinessException → 直接使用自身携带的完整信息
+2. 第三方异常 → 通过 mapping.resolve_error_code() 查 ErrorCode，extractors.extract_message 提取可读信息
 
 本模块只做流程编排，不含查表逻辑和字符串提取逻辑。前者在 mapping.py，后者在 extractors.py。
 """
@@ -14,7 +14,7 @@ FastAPI 全局异常处理器。
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from web_service.exception import BusinessException, ErrorCode
-from web_service.exception.handler.extractors import extract_detail, extract_message
+from web_service.exception.handler.extractors import extract_message
 from web_service.exception.handler.mapping import resolve_error_code
 
 
@@ -22,23 +22,29 @@ async def exception_handler(request: Request, exc: BaseException) -> JSONRespons
     """统一异常处理器。
 
     对所有已注册的异常类型（BusinessException / HTTPException /
-    RequestValidationError / Exception）返回统一格式的 JSON 响应：
+    RequestValidationError / Exception）返回与中间件一致的响应格式：
     {
-        "code":    业务错误码（如 "404001"）,
-        "message": 用户友好消息,
-        "detail":  可选的调试上下文,
+        "code":       业务错误码（如 "404001"）,
+        "data":       始终为 null,
+        "message":    用户友好消息,
+        "request_id": 请求追踪 ID（来自 middleware 注入的 request.state.request_id）
     }
 
     HTTP 状态码取自 ErrorCode.http_status。
     """
+    # 从 request.state 取 middleware 注入的 request_id（兜底为空字符串）
+    request_id = getattr(request.state, "request_id", "")
+
     # 1. BusinessException 优先使用自身携带的完整信息
     if isinstance(exc, BusinessException):
         return JSONResponse(
             status_code=exc.error_code.http_status,
+            headers={"X-Request-ID": request_id},
             content={
                 "code": exc.error_code.code,
+                "data": None,
                 "message": exc.message,
-                "detail": exc.detail,
+                "request_id": request_id,
             },
         )
 
@@ -46,9 +52,11 @@ async def exception_handler(request: Request, exc: BaseException) -> JSONRespons
     error_code: ErrorCode = resolve_error_code(exc)
     return JSONResponse(
         status_code=error_code.http_status,
+        headers={"X-Request-ID": request_id},
         content={
             "code": error_code.code,
+            "data": None,
             "message": extract_message(exc, error_code),
-            "detail": extract_detail(exc),
+            "request_id": request_id,
         },
     )

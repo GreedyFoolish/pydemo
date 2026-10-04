@@ -60,13 +60,44 @@ class _WebSettings(_BaseSettingsWithEnv):
 class _DBSettings(_BaseSettingsWithEnv):
     """数据库连接配置（读取 DB_ 前缀的 .env 变量）"""
 
-    host: str = ""  # 数据库主机地址，如 localhost
-    port: str = ""  # 数据库端口，如 5432
-    name: str = ""  # 数据库名
-    user: str = ""  # 连接用户名
-    password: str = ""  # 连接密码
+    # 数据库主机地址，如 localhost
+    host: str = ""
+    # 数据库端口，如 5432
+    port: str = ""
+    # 数据库名
+    name: str = ""
+    # 连接用户名
+    user: str = ""
+    # 连接密码
+    password: str = ""
 
     model_config = {"env_prefix": "DB_"}
+
+
+class _CORSSettings(_BaseSettingsWithEnv):
+    """跨域资源共享（CORS）配置（读取 CORS_ 前缀的 .env 变量）
+
+    .env 对应变量：
+        CORS_ALLOW_ORIGINS       → allow_origins     允许的源，JSON 数组格式
+        CORS_ALLOW_METHODS       → allow_methods     允许的 HTTP 方法，JSON 数组格式
+        CORS_ALLOW_HEADERS       → allow_headers     允许的请求头，JSON 数组格式
+        CORS_ALLOW_CREDENTIALS   → allow_credentials 是否允许携带凭证（Cookie 等），true/false
+        CORS_EXPOSE_HEADERS      → expose_headers    暴露给前端的响应头，JSON 数组格式
+    """
+
+    # 允许的源（白名单），JSON 数组格式；空列表表示不允许任何跨域请求
+    # 注意：allow_origins=["*"] 与 allow_credentials=True 不能同时使用（CORS 规范禁止）
+    allow_origins: list[str] = []
+    # 允许的 HTTP 方法
+    allow_methods: list[str] = ["*"]
+    # 允许的请求头
+    allow_headers: list[str] = ["*"]
+    # 是否允许携带凭证（Cookie 等）
+    allow_credentials: bool = False
+    # 暴露给前端的响应头
+    expose_headers: list[str] = []
+
+    model_config = {"env_prefix": "CORS_"}
 
 
 # 模块级单例
@@ -75,3 +106,4 @@ class _DBSettings(_BaseSettingsWithEnv):
 common_settings = _CommonSettings()
 web_settings = _WebSettings()
 db_settings = _DBSettings()
+cors_settings = _CORSSettings()

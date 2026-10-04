@@ -32,7 +32,9 @@ def extract_message(exc: BaseException, fallback_code: ErrorCode) -> str:
             # dict / list 等结构化 detail → 转 JSON 字符串保留信息
             try:
                 return json.dumps(exc.detail, ensure_ascii=False)
-            except TypeError, ValueError:
+            except TypeError:
+                return str(exc.detail)
+            except ValueError:
                 return str(exc.detail)
         # detail 为 None → 用 ErrorCode 的默认消息
         return fallback_code.default_message

@@ -11,6 +11,8 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException
 from web_service.core.config import common_settings, web_settings
+from web_service.core.middleware import register_middleware
+from web_service.core.openapi import setup_custom_openapi
 from web_service.exception.handler import exception_handler
 
 # 根据环境变量决定
@@ -23,6 +25,13 @@ app = FastAPI(
     redoc_url=None if is_production else "/redoc",
     openapi_url=None if is_production else "/openapi.json",
 )
+
+# —— 注册中间件 ——
+register_middleware(app)
+
+# —— 配置自定义 OpenAPI Schema ——
+# 将所有 /api/ 路径的响应体包装为与中间件输出一致的 {code, data, message, request_id} 格式
+setup_custom_openapi(app)
 
 # —— 全局异常处理器注册 ——
 app.add_exception_handler(RequestValidationError, exception_handler)

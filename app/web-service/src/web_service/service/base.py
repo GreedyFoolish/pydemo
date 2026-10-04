@@ -6,7 +6,7 @@ Service 层基础类定义。
 - BaseService: 泛型基础服务类，为所有实体 Service 子类提供统一的：
   - 依赖注入：接收 AsyncSession，由 API 层控制生命周期
   - 通用 CRUD：get_by_id / list / list_paged / count / create / update / delete
-  - 异常转换：将 SQLAlchemy 原始异常统一包装为 BusinessException
+  - 异常转换：将 SQLAlchemy 原始异常统一包装为 DatabaseException
 
 子类只需声明 ORM 模型类型和对应的 Schema 类，即可获得完整的类型安全 CRUD。
 """
@@ -17,8 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
-from web_service.exception.base import BusinessException
-from web_service.exception.codes import ErrorCode
+from web_service.exception import DatabaseException, ErrorCode
 
 # 绑定到 DeclarativeBase（即 model/base.py 中的 Base），确保泛型类型安全
 ModelType = TypeVar("ModelType", bound=DeclarativeBase)
@@ -90,7 +89,7 @@ class BaseService(Generic[ModelType]):
 
         若记录不存在，返回 None 而非抛异常，调用方自行决定后续处理。
         若需要"不存在就中断流程"的场景（如 update / delete 内部），
-        请使用 _require_by_id()，它会在不存在时抛出 BusinessException。
+        请使用 _require_by_id()，它会在不存在时抛出 DatabaseException。
 
         参数:
             id: 记录主键
@@ -99,21 +98,21 @@ class BaseService(Generic[ModelType]):
             匹配的 ORM 模型实例，不存在则返回 None
 
         异常:
-            BusinessException: 当数据库执行出错时（code=DB_OPERATIONAL_ERROR）
+            DatabaseException: 当数据库执行出错时（code=DB_OPERATIONAL_ERROR）
         """
         try:
             stmt = select(self._model).where(self._model.id == id)
             result = await self.session.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_OPERATIONAL_ERROR,
-                message=f"{self._model.__name__} 查询失败（id={id}）",
+                message=f"{self._model.__name__} 查询失败",
                 original_error=exc,
             )
 
     async def _require_by_id(self, id: int) -> ModelType:
-        """按 ID 查询记录，不存在时抛出 BusinessException(NOT_FOUND)。
+        """按 ID 查询记录，不存在时抛出 DatabaseException(NOT_FOUND)。
 
         用于"必须存在才能继续"的内部流程，如 update / delete。
         外部查询场景请使用 get_by_id() 并自行处理 None。
@@ -125,13 +124,13 @@ class BaseService(Generic[ModelType]):
             匹配的 ORM 模型实例
 
         异常:
-            BusinessException: 当记录不存在时（code=NOT_FOUND）
+            DatabaseException: 当记录不存在时（code=NOT_FOUND）
         """
         instance = await self.get_by_id(id)
         if instance is None:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.NOT_FOUND,
-                message=f"{self._model.__name__} 不存在（id={id}）",
+                message=f"{self._model.__name__} 不存在",
                 detail=f"model={self._model.__name__}, id={id}",
             )
         return instance
@@ -139,7 +138,7 @@ class BaseService(Generic[ModelType]):
     async def _require_exists(
         self, model_cls: Type[Any], id: int, label: str | None = None
     ) -> None:
-        """校验任意模型的某条记录是否存在，不存在则抛 BusinessException(NOT_FOUND)。
+        """校验任意模型的某条记录是否存在，不存在则抛 DatabaseException(NOT_FOUND)。
 
         用于跨模型外键校验场景，例如 SkuService.create 需要检查 product_id
         对应的 Product 是否存在，但 SkuService 不继承 BaseService[Product]。
@@ -150,24 +149,24 @@ class BaseService(Generic[ModelType]):
             label: 错误消息中使用的友好名称，不传则用 model_cls.__name__
 
         异常:
-            BusinessException: 当对应记录不存在（code=NOT_FOUND）或查询数据库出错时
+            DatabaseException: 当对应记录不存在（code=NOT_FOUND）或查询数据库出错时
         """
         try:
             stmt = select(model_cls).where(model_cls.id == id)
             result = await self.session.execute(stmt)
             exists = result.scalar_one_or_none() is not None
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_OPERATIONAL_ERROR,
-                message=f"{model_cls.__name__} 存在性校验失败（id={id}）",
+                message=f"{model_cls.__name__} 存在性校验失败",
                 original_error=exc,
             )
 
         if not exists:
             display = label or model_cls.__name__
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.NOT_FOUND,
-                message=f"{display}不存在（id={id}）",
+                message=f"{display}不存在",
                 detail=f"model={model_cls.__name__}, id={id}",
             )
 
@@ -190,7 +189,7 @@ class BaseService(Generic[ModelType]):
             ORM 模型实例列表
 
         异常:
-            BusinessException: 当数据库执行出错时（code=DB_OPERATIONAL_ERROR）
+            DatabaseException: 当数据库执行出错时（code=DB_OPERATIONAL_ERROR）
         """
         try:
             stmt = select(self._model)
@@ -204,7 +203,7 @@ class BaseService(Generic[ModelType]):
             result = await self.session.execute(stmt)
             return list(result.scalars().all())
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_OPERATIONAL_ERROR,
                 message=f"{self._model.__name__} 列表查询失败",
                 original_error=exc,
@@ -220,7 +219,7 @@ class BaseService(Generic[ModelType]):
             记录总数
 
         异常:
-            BusinessException: 当数据库执行出错时（code=DB_OPERATIONAL_ERROR）
+            DatabaseException: 当数据库执行出错时（code=DB_OPERATIONAL_ERROR）
         """
         try:
             stmt = select(func.count()).select_from(self._model)
@@ -231,7 +230,7 @@ class BaseService(Generic[ModelType]):
             result = await self.session.execute(stmt)
             return result.scalar_one() or 0
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_OPERATIONAL_ERROR,
                 message=f"{self._model.__name__} 计数查询失败",
                 original_error=exc,
@@ -304,7 +303,7 @@ class BaseService(Generic[ModelType]):
             新创建的 ORM 模型实例（已 flush + refresh，自增主键和 server_default 字段已就绪）
 
         异常:
-            BusinessException: 当违反数据库约束或数据库执行出错时
+            DatabaseException: 当违反数据库约束或数据库执行出错时
         """
         try:
             # 从 DTO 构造 ORM 实例，exclude_unset 排除未设置的字段
@@ -322,7 +321,7 @@ class BaseService(Generic[ModelType]):
             raise self._integrity_to_business(exc)
         except SQLAlchemyError as exc:
             # 其他数据库错误（连接断开、语法错误等）→ 原始错误透传
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_ERROR,
                 message=f"{self._model.__name__} 创建失败",
                 original_error=exc,
@@ -343,7 +342,7 @@ class BaseService(Generic[ModelType]):
             更新后的 ORM 模型实例
 
         异常:
-            BusinessException: 当记录不存在或违反约束时
+            DatabaseException: 当记录不存在或违反约束时
         """
         # 先查询，不存在则抛 NOT_FOUND（用 _require_by_id 保留异常语义）
         instance = await self._require_by_id(id)
@@ -365,9 +364,9 @@ class BaseService(Generic[ModelType]):
             raise self._integrity_to_business(exc)
         except SQLAlchemyError as exc:
             # 其他数据库错误（连接断开、语法错误等）→ 原始错误透传
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_ERROR,
-                message=f"{self._model.__name__} 更新失败（id={id}）",
+                message=f"{self._model.__name__} 更新失败",
                 original_error=exc,
             )
 
@@ -378,7 +377,7 @@ class BaseService(Generic[ModelType]):
             id: 要删除的记录主键
 
         异常:
-            BusinessException: 当记录不存在或删除触发外键约束时
+            DatabaseException: 当记录不存在或删除触发外键约束时
         """
         # 先查询确保对象存在（delete 必须拿到 ORM 实例才能删除）
         instance = await self._require_by_id(id)
@@ -389,9 +388,9 @@ class BaseService(Generic[ModelType]):
             # 删除时违反约束（如有子记录引用）
             raise self._integrity_to_business(exc)
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_ERROR,
-                message=f"{self._model.__name__} 删除失败（id={id}）",
+                message=f"{self._model.__name__} 删除失败",
                 original_error=exc,
             )
 
@@ -423,27 +422,27 @@ class BaseService(Generic[ModelType]):
 
     # —— 内部工具 ——
 
-    def _integrity_to_business(self, exc: IntegrityError) -> BusinessException:
-        """将 SQLAlchemy IntegrityError 转换为合适的 BusinessException。
+    def _integrity_to_business(self, exc: IntegrityError) -> DatabaseException:
+        """将 SQLAlchemy IntegrityError 转换为合适的 DatabaseException。
 
         根据异常类型和消息判断是唯一约束冲突还是外键约束冲突。
         """
         raw_msg = str(exc).lower()
 
         if "unique" in raw_msg or "duplicate" in raw_msg or "uq_" in raw_msg:
-            return BusinessException(
+            return DatabaseException(
                 error_code=ErrorCode.DB_UNIQUE_CONFLICT,
                 message=f"{self._model.__name__} 的数据已存在，违反唯一约束",
                 original_error=exc,
             )
         if "foreign key" in raw_msg or "fk_" in raw_msg:
-            return BusinessException(
+            return DatabaseException(
                 error_code=ErrorCode.DB_FK_CONFLICT,
                 message=f"{self._model.__name__} 关联的数据不存在，违反外键约束",
                 original_error=exc,
             )
         # 兜底：其他完整性错误
-        return BusinessException(
+        return DatabaseException(
             error_code=ErrorCode.DB_ERROR,
             message=f"{self._model.__name__} 数据库完整性错误",
             original_error=exc,

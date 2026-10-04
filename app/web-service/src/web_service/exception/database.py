@@ -6,8 +6,7 @@
 确保每次抛出都保留底层原始异常用于追溯。
 """
 
-from web_service.exception.base import BusinessException
-from web_service.exception.codes import ErrorCode
+from web_service.exception import BusinessException, ErrorCode
 
 
 class DatabaseException(BusinessException):

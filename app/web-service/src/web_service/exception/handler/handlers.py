@@ -13,8 +13,7 @@ FastAPI 全局异常处理器。
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from web_service.exception.base import BusinessException
-from web_service.exception.codes import ErrorCode
+from web_service.exception import BusinessException, ErrorCode
 from web_service.exception.handler.extractors import extract_detail, extract_message
 from web_service.exception.handler.mapping import resolve_error_code
 

@@ -7,13 +7,9 @@
 每个 extractor 函数接收 (异常实例, 兜底 ErrorCode) → 返回 str。
 """
 
-from __future__ import annotations
-
 import json
-
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException
-
 from web_service.exception.codes import ErrorCode
 
 

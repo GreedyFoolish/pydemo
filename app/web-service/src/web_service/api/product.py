@@ -13,7 +13,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from web_service.core.database import get_session
-from web_service.exception import BusinessException, ErrorCode
+from web_service.exception import DatabaseException, ErrorCode
 from web_service.schema.product import (
     ProductCreate,
     ProductResponse,
@@ -74,9 +74,9 @@ async def get_product(
     service = ProductService(db)
     detail = await service.get_detail(id)
     if detail is None:
-        raise BusinessException(
+        raise DatabaseException(
             error_code=ErrorCode.NOT_FOUND,
-            message=f"产品不存在（id={id}）",
+            message=f"产品不存在",
             detail=f"model=Product, id={id}",
         )
     return detail

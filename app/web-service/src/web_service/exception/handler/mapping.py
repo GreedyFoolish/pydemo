@@ -17,10 +17,7 @@
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-
-from web_service.exception.base import BusinessException
-from web_service.exception.codes import ErrorCode
-from web_service.exception.database import DatabaseException
+from web_service.exception import BusinessException, DatabaseException, ErrorCode
 
 # —— HTTP 状态码 → ErrorCode 映射 ——
 # HTTPException 携带 status_code，根据状态码精细映射到对应的业务错误码

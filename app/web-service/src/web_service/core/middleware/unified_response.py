@@ -35,6 +35,11 @@ async def unified_response(request: Request, call_next):
 
     response = await call_next(request)
 
+    # 204 No Content：HTTP 规范要求绝对不能有 body，直接透传。但是需要补 X-Request-ID header
+    if response.status_code == 204:
+        response.headers["X-Request-ID"] = request_id
+        return response
+
     # 非 /api/ 路径直接放行（如 Swagger 文档、健康检查等）
     if not request.url.path.startswith("/api/"):
         return response

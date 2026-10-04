@@ -8,8 +8,7 @@ Category 实体的 Service 实现。
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
-from web_service.exception.base import BusinessException
-from web_service.exception.codes import ErrorCode
+from web_service.exception import DatabaseException, ErrorCode
 from web_service.model.category import Category
 from web_service.service.base import BaseService
 from web_service.schema.category import (
@@ -48,7 +47,7 @@ class CategoryService(BaseService[Category]):
             CategoryResponseDetail（包含 products 列表），不存在则返回 None
 
         异常:
-            BusinessException: 当数据库执行出错时
+            DatabaseException: 当数据库执行出错时
         """
         try:
             stmt = (
@@ -59,9 +58,9 @@ class CategoryService(BaseService[Category]):
             result = await self.session.execute(stmt)
             instance = result.unique().scalar_one_or_none()
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_OPERATIONAL_ERROR,
-                message=f"分类详情查询失败（id={id}）",
+                message=f"分类详情查询失败",
                 original_error=exc,
             )
 

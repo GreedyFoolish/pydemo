@@ -8,8 +8,7 @@ Product 实体的 Service 实现。
 from sqlalchemy import delete, insert, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import selectinload
-from web_service.exception.base import BusinessException
-from web_service.exception.codes import ErrorCode
+from web_service.exception import DatabaseException, ErrorCode
 from web_service.model.association import product_category
 from web_service.model.category import Category
 from web_service.model.product import Product
@@ -49,7 +48,7 @@ class ProductService(BaseService[Product]):
             匹配的 Category ORM 实例列表（按 ID 去重）
 
         异常:
-            BusinessException: 当某个分类 ID 不存在，或查询数据库出错时
+            DatabaseException: 当某个分类 ID 不存在，或查询数据库出错时
         """
         # 去重后查询
         unique_ids = list(set(category_ids))
@@ -61,7 +60,7 @@ class ProductService(BaseService[Product]):
             result = await self.session.execute(stmt)
             categories = list(result.scalars().all())
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_OPERATIONAL_ERROR,
                 message="查询分类失败",
                 original_error=exc,
@@ -71,9 +70,9 @@ class ProductService(BaseService[Product]):
         found_ids = {c.id for c in categories}
         missing_ids = [cid for cid in unique_ids if cid not in found_ids]
         if missing_ids:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.NOT_FOUND,
-                message=f"部分分类不存在（ids={missing_ids}）",
+                message=f"部分分类不存在",
                 detail=f"missing_category_ids={missing_ids}",
             )
 
@@ -94,7 +93,7 @@ class ProductService(BaseService[Product]):
             新创建的 Product ORM 实例（已 flush + refresh）
 
         异常:
-            BusinessException: 当违反数据库约束或数据库执行出错时
+            DatabaseException: 当违反数据库约束或数据库执行出错时
         """
         try:
             # 1. 创建产品主体（排除 category_ids，它不是 Product 的直接字段）
@@ -123,7 +122,7 @@ class ProductService(BaseService[Product]):
         except IntegrityError as exc:
             raise self._integrity_to_business(exc)
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_ERROR,
                 message="产品创建失败",
                 original_error=exc,
@@ -140,7 +139,7 @@ class ProductService(BaseService[Product]):
             更新后的 Product ORM 实例（已 flush + refresh）
 
         异常:
-            BusinessException: 当记录不存在、违反约束或数据库执行出错时
+            DatabaseException: 当记录不存在、违反约束或数据库执行出错时
         """
         instance = await self._require_by_id(id)
 
@@ -172,9 +171,9 @@ class ProductService(BaseService[Product]):
         except IntegrityError as exc:
             raise self._integrity_to_business(exc)
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_ERROR,
-                message=f"产品更新失败（id={id}）",
+                message=f"产品更新失败",
                 original_error=exc,
             )
 
@@ -193,7 +192,7 @@ class ProductService(BaseService[Product]):
             ProductResponseDetail，不存在则返回 None
 
         异常:
-            BusinessException: 当数据库执行出错时
+            DatabaseException: 当数据库执行出错时
         """
         try:
             stmt = (
@@ -207,9 +206,9 @@ class ProductService(BaseService[Product]):
             result = await self.session.execute(stmt)
             instance = result.scalar_one_or_none()
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_OPERATIONAL_ERROR,
-                message=f"产品详情查询失败（id={id}）",
+                message=f"产品详情查询失败",
                 original_error=exc,
             )
 

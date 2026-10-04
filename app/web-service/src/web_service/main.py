@@ -8,7 +8,10 @@ FastAPI 应用入口。
 """
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException
 from web_service.core.config import common_settings, web_settings
+from web_service.exception.handler import exception_handler
 
 # 根据环境变量决定
 # is_production = os.getenv("ENVIRONMENT") == "production"
@@ -20,6 +23,11 @@ app = FastAPI(
     redoc_url=None if is_production else "/redoc",
     openapi_url=None if is_production else "/openapi.json",
 )
+
+# —— 全局异常处理器注册 ——
+app.add_exception_handler(RequestValidationError, exception_handler)
+app.add_exception_handler(HTTPException, exception_handler)
+app.add_exception_handler(Exception, exception_handler)
 
 # —— 注册路由 ——
 from web_service.api.category import router as category_router

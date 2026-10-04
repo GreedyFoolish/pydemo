@@ -8,8 +8,7 @@ Sku 实体的 Service 实现。
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
-from web_service.exception.base import BusinessException
-from web_service.exception.codes import ErrorCode
+from web_service.exception import DatabaseException, ErrorCode
 from web_service.model.product import Product
 from web_service.model.sku import Sku
 from web_service.service.base import BaseService
@@ -66,16 +65,16 @@ class SkuService(BaseService[Sku]):
             SkuResponseDetail，不存在则返回 None
 
         异常:
-            BusinessException: 当数据库执行出错时
+            DatabaseException: 当数据库执行出错时
         """
         try:
             stmt = select(Sku).options(selectinload(Sku.product)).where(Sku.id == id)
             result = await self.session.execute(stmt)
             instance = result.scalar_one_or_none()
         except SQLAlchemyError as exc:
-            raise BusinessException(
+            raise DatabaseException(
                 error_code=ErrorCode.DB_OPERATIONAL_ERROR,
-                message=f"SKU 详情查询失败（id={id}）",
+                message=f"SKU 详情查询失败",
                 original_error=exc,
             )
 

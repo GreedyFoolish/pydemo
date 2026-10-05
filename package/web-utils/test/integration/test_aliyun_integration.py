@@ -10,13 +10,10 @@ import hashlib
 import hmac
 import json
 import os
-import uuid
-from datetime import datetime, timezone
-
 import pytest
+from datetime import datetime, timezone
 from dotenv import load_dotenv
-
-from src.web_utils.upload.aliyun import AliyunOSSConfig, AliyunOSSUploader
+from web_utils.upload.aliyun import AliyunOSSConfig, AliyunOSSUploader
 
 load_dotenv(
     dotenv_path=os.path.join(

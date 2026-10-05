@@ -1,4 +1,4 @@
-from src.web_utils.shared.file_util import get_suffix
+from web_utils.shared.file_util import get_suffix
 
 
 class TestGetSuffix:

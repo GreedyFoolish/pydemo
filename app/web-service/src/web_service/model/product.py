@@ -23,4 +23,10 @@ class Product(Base, IDMixin, TimestampMixin):
     )
     # 一对多关系：product.skus → 该产品下所有 SKU
     # back_populates 关联 Sku.product，实现双向导航
-    skus: Mapped[list["Sku"]] = relationship(back_populates="product")
+    # passive_deletes=True：告诉 SQLAlchemy 不要管理这些子记录的外键置空，
+    # 让数据库层 ON DELETE CASCADE 自动删除关联的 SKU。
+    # 若不加此配置，SQLAlchemy 会先尝试 UPDATE sku SET product_id=NULL，
+    # 而 product_id 是 NOT NULL 的，会触发 IntegrityError 导致删除失败。
+    skus: Mapped[list["Sku"]] = relationship(
+        back_populates="product", passive_deletes=True
+    )

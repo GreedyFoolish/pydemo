@@ -70,9 +70,12 @@ class ProductService(BaseService[Product]):
         found_ids = {c.id for c in categories}
         missing_ids = [cid for cid in unique_ids if cid not in found_ids]
         if missing_ids:
+            # 关联不存在的分类属于"外键约束冲突"场景：
+            # 语义上请求操作与当前数据状态冲突（引用的分类不存在），
+            # 而不是"资源不存在"——资源不存在指的是 GET /categories/{id} 找不到分类本身。
             raise DatabaseException(
-                error_code=ErrorCode.NOT_FOUND,
-                message=f"部分分类不存在",
+                error_code=ErrorCode.DB_FK_CONFLICT,
+                message=f"部分分类不存在，无法建立关联",
                 detail=f"missing_category_ids={missing_ids}",
             )
 

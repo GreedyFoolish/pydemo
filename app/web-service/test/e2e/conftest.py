@@ -187,7 +187,7 @@ def pytest_sessionstart(session):
     from alembic.config import Config
     from alembic import command
 
-    WEB_SERVICE_DIR = Path(__file__).resolve().parent.parent
+    WEB_SERVICE_DIR = Path(__file__).resolve().parent.parent.parent
     alembic_cfg = Config()
     alembic_cfg.set_main_option("script_location", str(WEB_SERVICE_DIR / "migrations"))
     alembic_cfg.set_main_option(

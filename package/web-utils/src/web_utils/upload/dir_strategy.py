@@ -1,7 +1,7 @@
 from datetime import datetime
 
 
-def date_uuid_strategy() -> str:
+def date_uuid_strategy(filename: str = "") -> str:
     """
     日期 + UUID 目录策略。
 
@@ -22,7 +22,7 @@ def date_uuid_strategy() -> str:
     return f"uploads/{now.year:04d}/{now.month:02d}/{now.day:02d}/"
 
 
-def flat_uuid_strategy() -> str:
+def flat_uuid_strategy(filename: str = "") -> str:
     """
     扁平 UUID 目录策略。
 

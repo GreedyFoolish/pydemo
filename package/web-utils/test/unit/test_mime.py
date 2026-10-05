@@ -1,4 +1,4 @@
-from src.web_utils.shared.mime import get_mime_type, IMAGE_MIME, DOC_MIME
+from web_utils.shared.mime import get_mime_type, IMAGE_MIME, DOC_MIME
 
 
 class TestGetMimeType:

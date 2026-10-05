@@ -18,13 +18,17 @@ import pytest
 import psycopg2
 from pathlib import Path
 from contextlib import contextmanager
+from dotenv import load_dotenv
 
 # pydantic-settings 在首次实例化 _DBSettings 时读取 DB_NAME 环境变量，
 # 因此必须在 import db_settings 之前强制覆盖，才能让 db_settings.name 正确指向测试库
 # 注意：必须用赋值而非 setdefault，因为 pytest 进程启动时 DB_NAME 可能已存在于系统环境变量中，
 # setdefault 不会覆盖已存在的值，会导致误连开发库
-os.environ["DB_NAME"] = "web_test_service"
-from web_service.core.config import db_settings
+load_dotenv(Path(__file__).resolve().parent.parent.parent.parent.parent / ".env.test")
+os.environ["DB_NAME"] = "web_integration_test_service"
+from web_service.core.config import _DBSettings
+
+db_settings = _DBSettings()
 
 # 测试服务器运行端口，避开常见的 8000/8080 等端口，防止冲突
 TEST_SERVER_PORT = "18000"
@@ -74,9 +78,9 @@ def _start_server():
     _log_file = open(tmp_dir / "test_server.log", "w")
 
     # 显式传递 env=os.environ.copy()，确保子进程拿到 pytest 进程中
-    # 已设置的 DB_NAME=web_test_service；否则子进程可能回退到 .env 中的 web_service
+    # 已设置的 DB_NAME=web_integration_test_service；否则子进程可能回退到 .env 中的 web_service
     child_env = os.environ.copy()
-    child_env["DB_NAME"] = "web_test_service"
+    child_env["DB_NAME"] = "web_integration_test_service"
 
     # 直接用 uvicorn 启动，去掉 --reload：测试不需要热重载，
     # 且 --reload 在 Windows 上会额外启动 reloader 子进程，

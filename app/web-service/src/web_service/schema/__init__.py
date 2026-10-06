@@ -21,6 +21,10 @@ from web_service.schema.product import (
     ProductResponseDetail,
     ProductUpdate,
 )
+from web_service.schema.setting_item import (
+    SettingItemResponse,
+    SettingItemUpdate,
+)
 from web_service.schema.sku import (
     SkuCreate,
     SkuResponse,
@@ -38,6 +42,8 @@ __all__ = [
     "ProductResponse",
     "ProductResponseDetail",
     "ProductUpdate",
+    "SettingItemResponse",
+    "SettingItemUpdate",
     "SkuCreate",
     "SkuResponse",
     "SkuResponseDetail",
@@ -50,6 +56,4 @@ __all__ = [
 CategoryResponseDetail.model_rebuild(
     _types_namespace={"ProductResponse": ProductResponse}
 )
-SkuResponseDetail.model_rebuild(
-    _types_namespace={"ProductResponse": ProductResponse}
-)
+SkuResponseDetail.model_rebuild(_types_namespace={"ProductResponse": ProductResponse})

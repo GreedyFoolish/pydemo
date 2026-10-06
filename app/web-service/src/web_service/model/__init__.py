@@ -25,5 +25,7 @@ docker run -d
 from web_service.model import (
     category,
     product,
+    setting_group,
+    setting_item,
     sku,
 )

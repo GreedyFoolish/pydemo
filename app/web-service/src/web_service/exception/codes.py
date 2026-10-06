@@ -53,6 +53,7 @@ class ErrorCode(Enum):
     METHOD_NOT_ALLOWED = ("405001", 405, "请求方法不允许")
     CONFLICT = ("409001", 409, "资源冲突")
     VALIDATION_ERROR = ("422001", 422, "数据校验错误")
+    VALIDATION_FILE_ERROR = ("422002", 422, "文件数据验证错误")
     RATE_LIMITED = ("429001", 429, "请求过于频繁")
 
     # —— 通用 5xx 服务端错误 ——

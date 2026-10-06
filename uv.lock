@@ -1450,6 +1450,7 @@ dependencies = [
     { name = "psycopg2-binary" },
     { name = "pydantic-settings" },
     { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "web-utils" },
 ]
 
 [package.metadata]
@@ -1460,6 +1461,7 @@ requires-dist = [
     { name = "psycopg2-binary", specifier = "==2.9.12" },
     { name = "pydantic-settings", specifier = "==2.14.1" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = "==2.0.50" },
+    { name = "web-utils", editable = "package/web-utils" },
 ]
 
 [[package]]

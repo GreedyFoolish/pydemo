@@ -16,9 +16,11 @@
 from web_service.exception.base import BusinessException
 from web_service.exception.codes import ErrorCode
 from web_service.exception.database import DatabaseException
+from web_service.exception.upload import UploadException
 
 __all__ = [
     "BusinessException",
     "DatabaseException",
+    "UploadException",
     "ErrorCode",
 ]

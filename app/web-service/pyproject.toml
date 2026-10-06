@@ -10,6 +10,7 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic==1.18.4",
     "asyncpg==0.31.0",
+    "web-utils",
     "fastapi[standard]==0.136.3",
     "psycopg2-binary==2.9.12",
     "pydantic-settings==2.14.1",
@@ -22,6 +23,9 @@ dependencies = [
 [build-system]
 requires = ["uv_build>=0.12.15,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+web-utils = { workspace = true }
 
 # [tool.uv.build-backend] 
 # module-root = "src"

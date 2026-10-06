@@ -1,6 +1,7 @@
 """系统配置项的RESTful API路由
 
 提供配置项的查询和更新操作：
+- PUT    /settings/items                  按key批量更新配置值
 - GET    /settings/items/all              获取所有配置项（包含组信息）
 - GET    /settings/items/group/{group_id} 获取指定配置组下的所有配置项
 - GET    /settings/items/{id}             根据ID获取配置项
@@ -21,6 +22,20 @@ from web_service.schema.setting_item import (
 from web_service.service.setting_item import SettingItemService
 
 router = APIRouter(prefix="/api/settings/items", tags=["系统配置项"])
+
+
+@router.put(
+    "",
+    response_model=list[SettingItemResponse],
+    summary="批量更新配置项",
+    description="按 key 批量更新配置项的 value，用于系统设置页面保存。",
+)
+async def update_settings(
+    data: list[SettingItemUpdate],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> list[SettingItemResponse]:
+    service = SettingItemService(db)
+    return await service.update_settings(data)
 
 
 @router.get(

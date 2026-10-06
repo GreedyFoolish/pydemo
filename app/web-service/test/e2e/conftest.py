@@ -201,32 +201,10 @@ def pytest_sessionstart(session):
     command.upgrade(alembic_cfg, "head")
 
     # 第四步：启动 FastAPI 测试服务器
+    # uvicorn 子进程的 lifespan 会自动跑 init_settings 写入系统配置种子。
+    # 由于 _force_cleanup 已跳过 settinggroup/settingitem 表，种子只会在
+    # 测试库创建时（pytest_sessionstart）需要写入一次，后续再也不会被清。
     _start_server()
-
-    # 第五步：主动准备系统配置种子数据
-    # e2e 的 uvicorn 起在子进程里，lifespan 可能静默失败（异常被 except 吞掉）。
-    # 这里让 pytest 进程自己连测试库写种子，更直接可控。
-    _prepare_setting_seeds()
-
-
-def _prepare_setting_seeds():
-    """在 pytest 进程内用独立 session 主动写入系统配置种子。"""
-    import asyncio as _asyncio
-    from web_service.core.database import get_session_factory
-    from web_service.service.setting_item import SettingItemService
-
-    async def _do():
-        factory = get_session_factory()
-        async with factory() as session:
-            service = SettingItemService(session)
-            await service.init_settings()
-            await session.commit()
-            print("[conftest] 系统配置种子准备完成")
-
-    try:
-        _asyncio.run(_do())
-    except Exception as e:
-        print(f"[conftest] 系统配置种子准备失败（不阻断测试）: {e}")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -289,8 +267,14 @@ async def async_client():
         yield client
 
 
+# TRUNCATE 时跳过的表：系统配置种子数据，由 pytest_sessionstart 统一初始化一次
+_SKIP_TABLES = {"settinggroup", "settingitem"}
+
+
 async def _force_cleanup(max_retries: int = 3):
-    """强制清理数据库：TRUNCATE 所有表并重置自增序列。
+    """强制清理数据库：TRUNCATE 业务表并重置自增序列。
+
+    跳过 setting_group / setting_item 表，保留种子数据供所有用例共享。
 
     实现要点：
     - TRUNCATE 前先 pg_terminate_backend 杀掉 uvicorn 连接池中到测试库的
@@ -336,10 +320,12 @@ async def _force_cleanup(max_retries: int = 3):
             # 给 PostgreSQL 一点时间完成连接清理
             await asyncio.sleep(0.05)
 
-            # 第 2 步：TRUNCATE 所有表（需要 ACCESS EXCLUSIVE 锁，现在应该能立即拿到）
+            # 第 2 步：TRUNCATE 业务表（跳过系统配置表）
             async with engine.begin() as conn:
                 # 按外键依赖的反向顺序 TRUNCATE，避免 FK 约束冲突
                 for table in reversed(Base.metadata.sorted_tables):
+                    if table.name in _SKIP_TABLES:
+                        continue
                     await conn.execute(
                         text(f'TRUNCATE TABLE "{table.name}" RESTART IDENTITY CASCADE')
                     )

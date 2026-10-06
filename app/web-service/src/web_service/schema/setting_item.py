@@ -14,6 +14,7 @@ class SettingItemUpdate(BaseSchema):
     display_name / description / value 允许调整。
     """
 
+    key: str | None = Field(default=None, description="配置键")
     value: str | None = Field(default=None, description="配置值")
     display_name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)

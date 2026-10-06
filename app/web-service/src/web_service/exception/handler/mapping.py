@@ -17,7 +17,12 @@
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from web_service.exception import BusinessException, DatabaseException, ErrorCode
+from web_service.exception import (
+    BusinessException,
+    DatabaseException,
+    UploadException,
+    ErrorCode,
+)
 
 # —— HTTP 状态码 → ErrorCode 映射 ——
 # HTTPException 携带 status_code，根据状态码精细映射到对应的业务错误码
@@ -49,6 +54,7 @@ EXCEPTION_ERROR_CODE_MAP: dict[type[BaseException], ErrorCode] = {
     RequestValidationError: ErrorCode.VALIDATION_ERROR,
     # 自定义数据库异常，已在 Service 层捕获并转为 BusinessException
     DatabaseException: ErrorCode.VALIDATION_ERROR,
+    UploadException: ErrorCode.VALIDATION_FILE_ERROR,
     # SQLAlchemy（虽然 Service 层已捕获并转 BusinessException，但作为兜底处理未被捕获的情况）
     IntegrityError: ErrorCode.DB_ERROR,
     SQLAlchemyError: ErrorCode.DB_ERROR,

@@ -202,7 +202,22 @@ def pytest_sessionstart(session):
     command.upgrade(alembic_cfg, "head")
 
     # 第四步：启动 FastAPI 测试服务器
+    # uvicorn 子进程的 lifespan 会自动跑 init_settings 写入系统配置种子。
+    # 由于 _force_cleanup 已跳过 settinggroup/settingitem 表，种子只会在
+    # 测试库创建时（pytest_sessionstart）需要写入一次，后续再也不会被清。
     _start_server()
+
+
+def pytest_collection_modifyitems(config, items):
+    """调整用例执行顺序：带 skip_cleanup marker 的用例排最前。
+
+    cleanup_db 是 autouse 的，每个用例跑前都会 TRUNCATE 所有表。
+    把依赖种子的 skip_cleanup 用例排最前，先于其他文件的 TRUNCATE 跑。
+    """
+    skip_cleanup_items = [i for i in items if i.get_closest_marker("skip_cleanup")]
+    normal_items = [i for i in items if not i.get_closest_marker("skip_cleanup")]
+    if skip_cleanup_items:
+        items[:] = skip_cleanup_items + normal_items
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -253,8 +268,14 @@ async def async_client():
         yield client
 
 
+# TRUNCATE 时跳过的表：系统配置种子数据，由 pytest_sessionstart 统一初始化一次
+_SKIP_TABLES = {"settinggroup", "settingitem"}
+
+
 async def _force_cleanup(max_retries: int = 3):
-    """强制清理数据库：TRUNCATE 所有表并重置自增序列。
+    """强制清理数据库：TRUNCATE 业务表并重置自增序列。
+
+    跳过 setting_group / setting_item 表，保留种子数据供所有用例共享。
 
     实现要点：
     - TRUNCATE 前先 pg_terminate_backend 杀掉 uvicorn 连接池中到测试库的
@@ -300,10 +321,12 @@ async def _force_cleanup(max_retries: int = 3):
             # 给 PostgreSQL 一点时间完成连接清理
             await asyncio.sleep(0.05)
 
-            # 第 2 步：TRUNCATE 所有表（需要 ACCESS EXCLUSIVE 锁，现在应该能立即拿到）
+            # 第 2 步：TRUNCATE 业务表（跳过系统配置表）
             async with engine.begin() as conn:
                 # 按外键依赖的反向顺序 TRUNCATE，避免 FK 约束冲突
                 for table in reversed(Base.metadata.sorted_tables):
+                    if table.name in _SKIP_TABLES:
+                        continue
                     await conn.execute(
                         text(f'TRUNCATE TABLE "{table.name}" RESTART IDENTITY CASCADE')
                     )
@@ -324,14 +347,20 @@ async def _force_cleanup(max_retries: int = 3):
 
 
 @pytest.fixture(autouse=True)
-async def cleanup_db(async_client):
+async def cleanup_db(async_client, request):
     """autouse fixture：每个测试用例**前后**都清理数据库（双保险）。
 
     - 测试前先清理：确保无论上一个测试的清理是否完全成功，
       当前测试都从干净状态开始
     - 测试后再清理：防止数据残留影响后续测试
     - 依赖 async_client：确保 HTTP 客户端在清理前已关闭连接
+    - skip_cleanup marker：依赖 lifespan / pytest_sessionstart 主动
+      写入种子的用例跳过清理
     """
+    if request.node.get_closest_marker("skip_cleanup"):
+        yield
+        return
+
     # 测试执行前：先清理一次，确保数据干净
     await _force_cleanup()
 

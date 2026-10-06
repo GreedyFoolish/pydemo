@@ -163,6 +163,44 @@ class SettingItemService(BaseService[SettingItem]):
             total_count=len(item_responses),
         )
 
+    async def update_settings(
+        self, data: list[SettingItemUpdate]
+    ) -> list[SettingItemResponse]:
+        """按 key 批量更新配置项的 value。
+
+        仅更新显式传入 value 的项；按业务键 key 匹配（本项目 key 在业务上全局唯一）。
+
+        参数:
+            data: SettingItemUpdate 列表，使用其中的 key / value 字段
+
+        返回:
+            被更新的配置项响应列表
+
+        异常:
+            DatabaseException: 当数据库执行出错时（code=DB_OPERATIONAL_ERROR）
+        """
+        update_map = {item.key: item.value for item in data if item.key is not None}
+        if not update_map:
+            return []
+
+        try:
+            stmt = select(SettingItem).where(SettingItem.key.in_(update_map.keys()))
+            result = await self.session.execute(stmt)
+            instances = list(result.scalars().all())
+
+            for instance in instances:
+                if update_map[instance.key] is not None:
+                    instance.value = update_map[instance.key]
+
+            await self.session.flush()
+        except SQLAlchemyError as exc:
+            raise DatabaseException(
+                error_code=ErrorCode.DB_OPERATIONAL_ERROR,
+                message="配置项批量更新失败",
+                original_error=exc,
+            )
+        return self.to_response_list(instances)
+
     async def list_by_group(self, group_id: int) -> list[SettingItemResponse]:
         """获取指定配置组下的所有配置项"""
         try:

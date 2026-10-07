@@ -9,11 +9,9 @@
 因此本中间件必须在 unified_response 之后注册，才能捕获包含响应包装在内的完整耗时。
 """
 
-import logging
 import time
 from fastapi import Request
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 async def process_time(request: Request, call_next):

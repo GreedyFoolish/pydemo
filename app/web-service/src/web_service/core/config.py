@@ -112,6 +112,22 @@ class _AuthSettings(_BaseSettingsWithEnv):
     model_config = {"env_prefix": "AUTH_"}
 
 
+class _LogSettings(_BaseSettingsWithEnv):
+    """日志配置（读取 LOG_ 前缀的 .env 变量）
+
+    .env 对应变量：
+        LOG_LEVEL                   → level                 日志级别
+        LOG_SLOW_QUERY_THRESHOLD    → slow_query_threshold  慢查询阈值（毫秒）
+    """
+
+    # 日志级别：DEBUG / INFO / WARNING / ERROR
+    level: str = "INFO"
+    # 慢查询阈值，单位毫秒，超过此值的 SQL 查询会被记录为警告
+    slow_query_threshold: float = 200
+
+    model_config = {"env_prefix": "LOG_"}
+
+
 # 模块级单例
 # 首次 import 本模块时，pydantic-settings 自动从 .env 读取值并实例化。
 # 后续所有模块通过 `from web_service.core.config import common_settings` 引用同一份实例。
@@ -120,3 +136,4 @@ web_settings = _WebSettings()
 db_settings = _DBSettings()
 cors_settings = _CORSSettings()
 auth_settings = _AuthSettings()
+log_settings = _LogSettings()

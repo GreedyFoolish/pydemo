@@ -73,7 +73,7 @@ def _start_server():
     global _server_process, _log_file
 
     # 将子进程输出重定向到 tmp/test_server.log，避免与 pytest 输出混淆
-    tmp_dir = Path(__file__).resolve().parent.parent.parent.parent / "tmp"
+    tmp_dir = Path(__file__).resolve().parents[4] / "tmp"
     tmp_dir.mkdir(exist_ok=True)
     _log_file = open(tmp_dir / "test_server.log", "w")
 

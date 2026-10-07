@@ -3,7 +3,7 @@
 继承BaseService[SettingItem]，提供配置项特有的业务方法，并负责启动时的种子数据初始化。
 """
 
-import logging
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -19,8 +19,6 @@ from web_service.schema.setting_item import (
     SettingGroupSimpleResponse,
     SettingItemAllResponse,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class SettingItemService(BaseService[SettingItem]):

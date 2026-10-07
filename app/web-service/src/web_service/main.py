@@ -12,18 +12,26 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from loguru import logger
 from starlette.exceptions import HTTPException
 from web_service.core.config import common_settings, web_settings
 from web_service.core.database import get_session_factory
+from web_service.core.logger.log_record import setup_logging
 from web_service.core.middleware import register_middleware
 from web_service.core.openapi import setup_custom_openapi
 from web_service.exception.handler import exception_handler
 
-logger = logging.getLogger(__name__)
+# 禁用 uvicorn 自带的 error / access 日志，避免与 loguru 日志系统重复输出
+# 项目使用 setup_logging() 统一接管日志，uvicorn 原始日志不再需要
+logging.getLogger("uvicorn.error").disabled = True
+logging.getLogger("uvicorn.access").disabled = True
 
 # 根据环境变量决定
 # is_production = os.getenv("ENVIRONMENT") == "production"
 is_production = common_settings.environment == "production"
+
+# 初始化日志系统
+setup_logging()
 
 
 @asynccontextmanager

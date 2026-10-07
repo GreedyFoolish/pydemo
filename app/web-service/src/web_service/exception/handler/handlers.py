@@ -34,9 +34,16 @@ async def exception_handler(request: Request, exc: BaseException) -> JSONRespons
     """
     # 从 request.state 取 middleware 注入的 request_id（兜底为空字符串）
     request_id = getattr(request.state, "request_id", "")
+    # 标记进行错误处理
+    request.state.exception_handled = True
 
     # 1. BusinessException 优先使用自身携带的完整信息
     if isinstance(exc, BusinessException):
+        # 请求日志记录
+        log = getattr(request.state, "request_log", None)
+        if log:
+            log.message = f"业务异常: {exc.message}"
+            log.warning()
         return JSONResponse(
             status_code=exc.error_code.http_status,
             headers={"X-Request-ID": request_id},
@@ -50,13 +57,23 @@ async def exception_handler(request: Request, exc: BaseException) -> JSONRespons
 
     # 2. 第三方异常：查映射表 + 提取可读信息
     error_code: ErrorCode = resolve_error_code(exc)
+    http_status = error_code.http_status
+    message = extract_message(exc, error_code)
+    # 请求日志记录
+    log = getattr(request.state, "request_log", None)
+    if log:
+        log.message = f"请求异常: {message}"
+        if http_status == 500:
+            log.error(exc=exc)
+        else:
+            log.warning()
     return JSONResponse(
         status_code=error_code.http_status,
         headers={"X-Request-ID": request_id},
         content={
             "code": error_code.code,
             "data": None,
-            "message": extract_message(exc, error_code),
+            "message": message,
             "request_id": request_id,
         },
     )

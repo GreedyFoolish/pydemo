@@ -81,9 +81,11 @@ from web_service.api.product import router as product_router
 from web_service.api.sku import router as sku_router
 from web_service.api.setting_item import router as setting_item_router
 from web_service.api.upload import router as upload_router
+from web_service.api.auth import router as auth_router
 
 app.include_router(category_router)
 app.include_router(product_router)
 app.include_router(sku_router)
 app.include_router(setting_item_router)
 app.include_router(upload_router)
+app.include_router(auth_router)

@@ -28,4 +28,5 @@ from web_service.model import (
     setting_group,
     setting_item,
     sku,
+    user,
 )

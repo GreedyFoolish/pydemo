@@ -2,6 +2,7 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from web_service.core.config import auth_settings
+from web_service.core.logger.business_log import service_logger
 from web_service.exception import DatabaseException, AuthException, ErrorCode
 from web_service.model.setting_item import SettingItem
 from web_service.model.user import User
@@ -12,6 +13,11 @@ from web_utils.auth.password import hash_password, verify_password
 
 
 class UserService(BaseService):
+    @service_logger(
+        action="用户注册",
+        entity="User",
+        id_extractor=lambda args, kwargs, result: str(result.id),
+    )
     async def register(self, data: UserRegister) -> UserResponse:
         existing = await self.session.scalar(
             select(User).where(User.username == data.username)

@@ -22,7 +22,6 @@
 """
 
 from dataclasses import dataclass
-
 from web_service.core.logger.log_record import LogRecord
 
 

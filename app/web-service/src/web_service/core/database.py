@@ -6,7 +6,10 @@
 - get_session_factory(): 返回全局唯一的 async_sessionmaker 实例
 """
 
+import time
+import weakref
 from collections.abc import AsyncGenerator
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -14,10 +17,56 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
-from web_service.core.config import db_settings
+from web_service.core.config import db_settings, log_settings
 
 # 全局单例引擎，首次调用 get_engine() 时初始化
 _engine: AsyncEngine | None = None
+# 记录每条 SQL 执行的起始时间，key 为 ExecutionContext 对象
+# 使用 WeakKeyDictionary：context 被 GC 时 entry 自动移除，避免异常中断导致内存泄漏
+_query_start_times: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+
+
+def _register_db_events(engine: AsyncEngine) -> None:
+    """注册 SQLAlchemy 事件钩子，实现 SQL 执行日志。
+
+    通过 before/after_cursor_execute 拦截每条 SQL，计算耗时后：
+    - 慢查询（>= slow_query_threshold）→ WARNING
+    - 普通查询 → DEBUG
+
+    延迟导入 DBLog 以避免循环依赖。
+    """
+    from web_service.core.logger.db_log import DBLog
+
+    @event.listens_for(engine.sync_engine, "before_cursor_execute")
+    def _before_cursor_execute(
+        conn, cursor, statement, parameters, context, executemany
+    ):
+        # 以 context 对象为 key 记录起始时间，确保同一执行上下文配对
+        _query_start_times[context] = time.perf_counter()
+
+    @event.listens_for(engine.sync_engine, "after_cursor_execute")
+    def _after_cursor_execute(
+        conn, cursor, statement, parameters, context, executemany
+    ):
+        start = _query_start_times.pop(context, None)
+        if start is None:
+            return
+        duration = (time.perf_counter() - start) * 1000
+        # 数据库日志记录
+        if duration >= log_settings.slow_query_threshold:
+            DBLog(
+                message="慢查询",
+                sql=statement,
+                params=str(parameters),
+                duration_ms=round(duration, 2),
+            ).warning()
+        else:
+            DBLog(
+                message="SQL执行",
+                sql=statement,
+                params=str(parameters),
+                duration_ms=round(duration, 2),
+            ).debug()
 
 
 def get_engine() -> AsyncEngine:
@@ -39,8 +88,10 @@ def get_engine() -> AsyncEngine:
             pool_size=10,  # 连接池基础大小
             max_overflow=20,  # 连接池最大溢出数
             pool_pre_ping=True,  # 连接前预检测，防止空闲连接断开
-            echo=False,  # 关闭 SQL 日志输出
+            echo=False,  # 关闭 SQLAlchemy 内置日志，改由事件钩子自定义输出
         )
+        # 注册 SQL 拦截事件，替代 echo=True 的日志功能
+        _register_db_events(_engine)
 
     return _engine
 

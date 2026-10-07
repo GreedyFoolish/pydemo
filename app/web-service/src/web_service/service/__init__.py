@@ -13,6 +13,8 @@ from web_service.service.base import BaseService, PageResult
 from web_service.service.category import CategoryService
 from web_service.service.product import ProductService
 from web_service.service.sku import SkuService
+from web_service.service.upload import UploadService
+from web_service.service.user import UserService
 
 __all__ = [
     "BaseService",
@@ -20,4 +22,6 @@ __all__ = [
     "CategoryService",
     "ProductService",
     "SkuService",
+    "UploadService",
+    "UserService",
 ]

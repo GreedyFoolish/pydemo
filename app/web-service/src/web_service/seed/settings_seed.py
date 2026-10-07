@@ -57,10 +57,24 @@ class SettingGroupSeed:
 
 SETTING_SEEDS: list[SettingGroupSeed] = [
     SettingGroupSeed(
+        key="auth",
+        display_name="认证授权设置",
+        description="JWT 令牌相关配置",
+        sort_order=1,
+        items=[
+            SettingItemSeed(
+                key="jwt_expire_minutes",
+                value="120",
+                display_name="JWT 过期时间",
+                description="JWT 令牌有效期，单位分钟，默认 120 分钟",
+            ),
+        ],
+    ),
+    SettingGroupSeed(
         key="aliyun_oss",
         display_name="阿里云OSS上传设置",
         description="阿里云OSS对象存储上传配置",
-        sort_order=1,
+        sort_order=2,
         items=[
             SettingItemSeed(
                 key="oss_endpoint",

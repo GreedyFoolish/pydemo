@@ -100,6 +100,18 @@ class _CORSSettings(_BaseSettingsWithEnv):
     model_config = {"env_prefix": "CORS_"}
 
 
+class _AuthSettings(_BaseSettingsWithEnv):
+    """认证授权配置（读取 AUTH_ 前缀的 .env 变量）
+
+    .env 对应变量：
+        AUTH_SECRET_KEY → secret_key  JWT 签名密钥
+    """
+
+    secret_key: str = ""
+
+    model_config = {"env_prefix": "AUTH_"}
+
+
 # 模块级单例
 # 首次 import 本模块时，pydantic-settings 自动从 .env 读取值并实例化。
 # 后续所有模块通过 `from web_service.core.config import common_settings` 引用同一份实例。
@@ -107,3 +119,4 @@ common_settings = _CommonSettings()
 web_settings = _WebSettings()
 db_settings = _DBSettings()
 cors_settings = _CORSSettings()
+auth_settings = _AuthSettings()

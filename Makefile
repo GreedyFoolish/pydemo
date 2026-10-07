@@ -1,4 +1,4 @@
-.PHONY: dev debug test test-unit test-integration test-e2e test-smoke db-migrate db-upgrade db-downgrade
+.PHONY: dev debug test test-unit test-integration test-e2e test-smoke test-changed db-migrate db-upgrade db-downgrade
 
 dev:
 	uv run --package web-service fastapi dev app/web-service/src/web_service/main.py --port 8080
@@ -26,6 +26,9 @@ test-e2e:
 test-smoke:
 	uv run pytest app/web-service/test/e2e/ -q -m smoke
 	uv run pytest package/web-utils/test/ app/web-service/test/unit/ app/web-service/test/integration/ -q -m smoke
+
+test-changed:
+	uv run python scripts/run_changed_tests.py
 
 db-migrate:
 	uv run --package web-service alembic -c app/web-service/alembic.ini revision --autogenerate -m "$(message)"

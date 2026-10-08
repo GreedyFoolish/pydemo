@@ -70,3 +70,7 @@ class ErrorCode(Enum):
 
     # —— 预留扩展 ——
     AUTH_ERROR = ("401002", 401, "认证失败")
+
+    # —— AI 服务错误 ——
+    AI_SERVICE_ERROR = ("500301", 500, "AI 服务调用失败")
+    AI_SERVICE_UNAVAILABLE = ("503301", 503, "AI 服务暂不可用")

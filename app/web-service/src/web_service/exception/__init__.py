@@ -18,11 +18,13 @@ from web_service.exception.codes import ErrorCode
 from web_service.exception.database import DatabaseException
 from web_service.exception.upload import UploadException
 from web_service.exception.auth import AuthException
+from web_service.exception.ai import AiException
 
 __all__ = [
     "BusinessException",
     "DatabaseException",
     "UploadException",
     "AuthException",
+    "AiException",
     "ErrorCode",
 ]

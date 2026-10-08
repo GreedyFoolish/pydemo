@@ -336,6 +336,9 @@ async def _force_cleanup(max_retries: int = 3):
         except Exception as e:
             last_error = e
             await engine.dispose()
+            # 数据库不存在说明无需清理（可能是 pytest_sessionstart 未执行或已清理）
+            if "does not exist" in str(e):
+                return
             if attempt < max_retries:
                 # 指数退避：50ms → 100ms → 200ms
                 await asyncio.sleep(0.05 * (2 ** (attempt - 1)))

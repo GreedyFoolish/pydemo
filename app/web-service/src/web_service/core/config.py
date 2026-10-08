@@ -128,6 +128,29 @@ class _LogSettings(_BaseSettingsWithEnv):
     model_config = {"env_prefix": "LOG_"}
 
 
+class _AISettings(_BaseSettingsWithEnv):
+    """AI 大模型配置（读取 AI_ 前缀的 .env 变量）
+
+    作为 AI 服务的后备配置：当数据库 setting_item 表中未配置
+    ai_api_key / ai_base_url / ai_model 时，Service 层会 fallback
+    到此处读取 .env 的值。优先级：数据库 > .env。
+
+    .env 对应变量：
+        AI_API_KEY  → api_key   大模型 API 密钥
+        AI_BASE_URL → base_url  大模型 API 端点地址
+        AI_MODEL    → model    默认使用的模型名称
+    """
+
+    # 大模型 API 密钥
+    api_key: str = ""
+    # 大模型 API 端点地址
+    base_url: str = ""
+    # 默认使用的模型名称
+    model: str = ""
+
+    model_config = {"env_prefix": "AI_"}
+
+
 # 模块级单例
 # 首次 import 本模块时，pydantic-settings 自动从 .env 读取值并实例化。
 # 后续所有模块通过 `from web_service.core.config import common_settings` 引用同一份实例。
@@ -137,3 +160,4 @@ db_settings = _DBSettings()
 cors_settings = _CORSSettings()
 auth_settings = _AuthSettings()
 log_settings = _LogSettings()
+ai_settings = _AISettings()

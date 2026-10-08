@@ -21,6 +21,8 @@ from web_service.exception import (
     BusinessException,
     DatabaseException,
     UploadException,
+    AuthException,
+    AiException,
     ErrorCode,
 )
 
@@ -55,6 +57,8 @@ EXCEPTION_ERROR_CODE_MAP: dict[type[BaseException], ErrorCode] = {
     # 自定义数据库异常，已在 Service 层捕获并转为 BusinessException
     DatabaseException: ErrorCode.VALIDATION_ERROR,
     UploadException: ErrorCode.VALIDATION_FILE_ERROR,
+    AuthException: ErrorCode.AUTH_ERROR,
+    AiException: ErrorCode.AI_SERVICE_ERROR,
     # SQLAlchemy（虽然 Service 层已捕获并转 BusinessException，但作为兜底处理未被捕获的情况）
     IntegrityError: ErrorCode.DB_ERROR,
     SQLAlchemyError: ErrorCode.DB_ERROR,

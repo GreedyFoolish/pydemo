@@ -23,6 +23,7 @@ docker run -d
 """
 
 from web_service.model import (
+    ai_conversation,
     category,
     product,
     setting_group,

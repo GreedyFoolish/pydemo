@@ -1,0 +1,52 @@
+# =============================================================================
+# .dockerignore —— Docker build 时排除这些文件/目录
+# Build context: 仓库根目录
+# =============================================================================
+
+# ---- Git ----
+.git
+.gitignore
+.gitattributes
+
+# ---- Python 缓存 & 构建产物 ----
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.so
+*.whl
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- 虚拟环境 & IDE ----
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+!.env.test.example
+.vscode/
+.idea/
+
+# ---- 测试文件（运行时不需要） ----
+test/
+**/test/
+
+# ---- 文档 & 示例 ----
+# *.md 排除所有 markdown，但 package/web-utils 和 app/web-service 的 README.md
+# 不能排除 —— pyproject.toml 里声明了 readme = "README.md"，uv sync 构建 wheel 需要读取
+*.md
+!package/web-utils/README.md
+!app/web-service/README.md
+*.rst
+LICENSE
+CHANGELOG*
+
+# ---- OS 临时文件 ----
+.DS_Store
+Thumbs.db
+
+# ---- 项目构建 & 部署脚本 ----
+package/web-utils/test/
+app/web-service/test/

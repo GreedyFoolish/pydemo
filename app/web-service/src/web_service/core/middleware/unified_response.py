@@ -12,8 +12,11 @@
 
 import json
 import uuid
+from typing import Any
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+_NO_BODY_STATUS = frozenset(range(100, 200)) | {204, 304}
 
 
 def _is_already_wrapped(data) -> bool:
@@ -35,13 +38,22 @@ async def unified_response(request: Request, call_next):
 
     response = await call_next(request)
 
-    # 204 No Content：HTTP 规范要求绝对不能有 body，直接透传。但是需要补 X-Request-ID header
-    if response.status_code == 204:
-        response.headers["X-Request-ID"] = request_id
-        return response
+    # 所有响应统一补充 X-Request-ID header（含透传场景），便于链路追踪
+    response.headers["X-Request-ID"] = request_id
 
-    # 非 /api/ 路径直接放行（如 Swagger 文档、健康检查等）
-    if not request.url.path.startswith("/api/"):
+    # 以下场景直接透传响应，不做统一格式包装：
+    # 1. 非 /api/ 路径：Swagger 文档、健康检查等无需统一包装
+    # 2. exception_handled：异常处理器已包装为统一格式，避免双重包装
+    # 3. is_stream：SSE / WebSocket 等流式响应，响应体不可一次性读取为 JSON
+    # 4. HEAD 请求：HTTP 规范规定 HEAD 响应不含 body
+    # 5. _NO_BODY_STATUS：1xx / 204 / 304 等状态码按 HTTP 规范不允许有 body
+    if (
+        not request.url.path.startswith("/api/")
+        or getattr(request.state, "exception_handled", False)
+        or getattr(request.state, "is_stream", False)
+        or request.method == "HEAD"
+        or response.status_code in _NO_BODY_STATUS
+    ):
         return response
 
     # 流式读取响应体
@@ -83,4 +95,4 @@ async def unified_response(request: Request, call_next):
     )
 
 
-MIDDLEWARE = (unified_response, {})
+MIDDLEWARE: tuple[Any, dict[str, Any]] = (unified_response, {})

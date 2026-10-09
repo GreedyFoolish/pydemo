@@ -13,15 +13,9 @@ from web_utils.auth.jwt_util import decode_token
 security_scheme = HTTPBearer()
 
 
-async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_scheme)],
-    db: Annotated[AsyncSession, Depends(get_session)],
-) -> User:
+async def get_user_from_token(token: str, db: AsyncSession) -> User:
     try:
-        payload = decode_token(
-            credentials.credentials,
-            auth_settings.secret_key,
-        )
+        payload = decode_token(token, auth_settings.secret_key)
     except jwt.InvalidTokenError as e:
         raise AuthException(message="token 无效：token无效或已过期") from e
 
@@ -36,3 +30,10 @@ async def get_current_user(
         raise AuthException(message="token 无效：token无效或已过期")
 
     return user
+
+
+async def get_current_user(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_scheme)],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> User:
+    return await get_user_from_token(credentials.credentials, db)

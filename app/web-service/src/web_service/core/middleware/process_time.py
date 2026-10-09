@@ -10,6 +10,7 @@
 """
 
 import time
+from typing import Any
 from fastapi import Request
 from loguru import logger
 
@@ -45,4 +46,4 @@ async def process_time(request: Request, call_next):
     return response
 
 
-MIDDLEWARE = (process_time, {})
+MIDDLEWARE: tuple[Any, dict[str, Any]] = (process_time, {})

@@ -1,9 +1,12 @@
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
+from openai import OpenAIError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from web_service.exception.ai import AiException
+from web_service.exception.base import BusinessException, ErrorCode
 from web_service.model.ai_conversation import AiConversation
 from web_service.model.product import Product
 from web_service.model.setting_item import SettingItem
@@ -19,6 +22,27 @@ _template_dir = Path(__file__).parent / "template"
 _jinja_env = Environment(loader=FileSystemLoader(str(_template_dir)))
 
 
+@dataclass
+class InitReadResult:
+    """initialize 读阶段结果：session 关闭前将所有 ORM 数据转为纯 Python 对象。"""
+
+    product_id: int
+    user_id: int
+    system_prompt: str
+    ai_config: AIChatConfig
+    has_history: bool  # True 表示已有对话记录，需要 update 而非 insert
+
+
+@dataclass
+class MessageReadResult:
+    """send_message 读阶段结果：会话关闭前将消息历史和 AI 配置转为纯 Python 对象。"""
+
+    product_id: int
+    user_id: int
+    ai_messages: list[AIMessage]
+    ai_config: AIChatConfig
+
+
 class AiService(BaseService):
 
     async def _load_product(self, product_id: int) -> Product:
@@ -28,7 +52,14 @@ class AiService(BaseService):
             .options(selectinload(Product.categories), selectinload(Product.skus))
             .where(Product.id == product_id)
         )
-        return result.unique().scalar_one()
+        product = result.unique().scalar_one_or_none()
+        if product is None:
+            raise BusinessException(
+                error_code=ErrorCode.NOT_FOUND,
+                message="产品不存在",
+                detail=f"model=Product, id={product_id}",
+            )
+        return product
 
     def _render_system_prompt(self, product: Product) -> str:
         template = _jinja_env.get_template("product_intro.j2")
@@ -86,58 +117,85 @@ class AiService(BaseService):
             return []
         return [m for m in conv.messages if m["role"] != MESSAGE_ROLE_SYSTEM]
 
-    async def initialize(
-        self, user_id: int, product_id: int
-    ) -> AsyncGenerator[str, None]:
-        # 初始化 AI 导购：生成产品介绍系统提示词，流式返回 AI 响应
-        # 若已有对话记录（>1 条消息）则拒绝初始化，防止覆盖历史
+    async def read_initialize(self, user_id: int, product_id: int) -> InitReadResult:
+        # 读阶段：加载产品、渲染提示词、读取 AI 配置，session 关闭前将 ORM 数据转为纯 Python 对象
         conv = await self._get_conversation(user_id, product_id)
-
         if conv is not None and len(conv.messages) > 1:
             raise AiException(message="该产品已有对话历史记录，请先清空后再初始化")
 
         product = await self._load_product(product_id)
         system_prompt = self._render_system_prompt(product)
-
         config = await self._get_required_ai_config()
-        ai_chat = AIChat(config)
-        # 提交并关闭会话，释放数据库连接回连接池，避免长时间占用
-        await self.session.commit()
-        await self.session.close()
 
+        return InitReadResult(
+            product_id=product_id,
+            user_id=user_id,
+            system_prompt=system_prompt,
+            ai_config=config,
+            has_history=conv is not None,
+        )
+
+    async def initialize_stream(
+        self, read_result: InitReadResult
+    ) -> AsyncGenerator[str, None]:
+        # 流式阶段：不依赖数据库连接，纯 AI 调用
+        ai_chat = AIChat(read_result.ai_config)
         full_response = ""
-        async for chunk in ai_chat.chat_stream(
-            [AIMessage(role=MessageRole.SYSTEM, content=system_prompt)]
-        ):
-            full_response += chunk
-            yield chunk
+        try:
+            # 调用 AI 流式接口：必须包含至少一条 user 消息（部分 API 不接受纯 system 请求）
+            # 智谱 BigModel（glm-5.2）不允许 messages 数组只有`system` 或`assistant` 消息 ，至少要有一条`user` 消息。
+            # 这就是错误码`1214 / messages 参数非法` 的原因。OpenAI 对此比较宽松不会报错，但 BigModel 严格校验。
+            # system 消息携带产品上下文，user 消息触发 AI 生成产品介绍
+            async for chunk in ai_chat.chat_stream(
+                [
+                    AIMessage(
+                        role=MessageRole.SYSTEM, content=read_result.system_prompt
+                    ),
+                    AIMessage(
+                        role=MessageRole.USER, content="你好，请介绍一下这个产品"
+                    ),
+                ]
+            ):
+                # 累积完整回复，用于后续持久化到对话记录
+                full_response += chunk
+                # 实时推送给 WebSocket 客户端
+                yield chunk
+        except OpenAIError as e:
+            # 将 OpenAI 底层异常包装为业务异常，由 API 层统一处理并返回给客户端
+            raise AiException(
+                message="AI 服务调用失败",
+                detail=f"{type(e).__name__}: {e}",
+                original_error=e,
+            ) from e
 
-        # 流式响应完成后，创建或更新对话记录
-        if conv is None:
+    async def write_initialize(
+        self, read_result: InitReadResult, full_response: str
+    ) -> None:
+        # 写阶段：用新 session 将 AI 响应持久化到对话记录
+        if not read_result.has_history:
             conv = AiConversation(
-                user_id=user_id,
-                product_id=product_id,
+                product_id=read_result.product_id,
+                user_id=read_result.user_id,
                 messages=[
-                    {"role": MESSAGE_ROLE_SYSTEM, "content": system_prompt},
+                    {"role": MESSAGE_ROLE_SYSTEM, "content": read_result.system_prompt},
                     {"role": MESSAGE_ROLE_ASSISTANT, "content": full_response},
                 ],
             )
             self.session.add(conv)
         else:
-            # 已有空对话记录，更新消息内容
+            conv = await self._get_conversation(
+                read_result.user_id, read_result.product_id
+            )
             conv.messages = [
-                {"role": MESSAGE_ROLE_SYSTEM, "content": system_prompt},
+                {"role": MESSAGE_ROLE_SYSTEM, "content": read_result.system_prompt},
                 {"role": MESSAGE_ROLE_ASSISTANT, "content": full_response},
             ]
-            # merge: 会话关闭后 conv 变为游离状态，merge 将其重新关联到当前会话
-            conv = await self.session.merge(conv)
-
         await self.session.flush()
 
-    async def send_message_stream(
+    async def read_message(
         self, user_id: int, product_id: int, content: str
-    ) -> AsyncGenerator[str, None]:
-        # 发送用户消息并流式返回 AI 响应，自动追加到对话历史
+    ) -> MessageReadResult:
+        # 读阶段：加载对话历史并转为纯 Python 对象，session 关闭后仍可安全使用
         conv = await self._get_conversation(user_id, product_id)
         if conv is None:
             raise AiException(message="未找到对话记录，请先初始化AI导购")
@@ -149,24 +207,42 @@ class AiService(BaseService):
         ai_messages.append(AIMessage(role=MessageRole.USER, content=content))
 
         config = await self._get_required_ai_config()
-        ai_chat = AIChat(config)
-        # 提交并关闭会话，释放数据库连接回连接池
-        await self.session.commit()
-        await self.session.close()
 
+        return MessageReadResult(
+            product_id=product_id,
+            user_id=user_id,
+            ai_messages=ai_messages,
+            ai_config=config,
+        )
+
+    async def send_message_stream(
+        self, read_result: MessageReadResult
+    ) -> AsyncGenerator[str, None]:
+        # 流式阶段：不依赖数据库连接，纯 AI 调用
+        ai_chat = AIChat(read_result.ai_config)
         full_response = ""
-        async for chunk in ai_chat.chat_stream(ai_messages):
-            full_response += chunk
-            yield chunk
+        try:
+            async for chunk in ai_chat.chat_stream(read_result.ai_messages):
+                full_response += chunk
+                yield chunk
+        except OpenAIError as e:
+            # 将 OpenAI 底层异常包装为业务异常，由 API 层统一处理并返回给客户端
+            raise AiException(
+                message="AI 服务调用失败",
+                detail=f"{type(e).__name__}: {e}",
+                original_error=e,
+            ) from e
 
-        # 将用户消息和 AI 响应追加到对话记录
+    async def write_message(
+        self, read_result: MessageReadResult, content: str, full_response: str
+    ) -> None:
+        # 写阶段：用新 session 将用户消息和 AI 响应追加到对话记录
+        conv = await self._get_conversation(read_result.user_id, read_result.product_id)
         conv.messages = [
             *conv.messages,
             {"role": MESSAGE_ROLE_USER, "content": content},
             {"role": MESSAGE_ROLE_ASSISTANT, "content": full_response},
         ]
-        # merge: 会话关闭后 conv 变为游离状态，merge 将其重新关联到当前会话
-        conv = await self.session.merge(conv)
         await self.session.flush()
 
     async def delete_conversation(self, user_id: int, product_id: int) -> None:

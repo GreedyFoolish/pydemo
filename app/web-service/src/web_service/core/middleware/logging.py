@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 from fastapi import Request
 from web_service.core.logger.log_record import request_id_var
 from web_service.core.logger.request_log import RequestLog
@@ -21,4 +22,4 @@ async def logging_middleware(request: Request, call_next):
     return response
 
 
-MIDDLEWARE: tuple[object, dict[str, object]] = (logging_middleware, {})
+MIDDLEWARE: tuple[Any, dict[str, Any]] = (logging_middleware, {})

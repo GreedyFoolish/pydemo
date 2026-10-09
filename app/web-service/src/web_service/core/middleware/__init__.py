@@ -15,13 +15,14 @@
 
 import inspect
 from fastapi import FastAPI
+from typing import Any
 from web_service.core.middleware import unified_response, process_time, cors, logging
 
 # 中间件配置列表
 # 每个中间件项是一个元组：(callable_obj, kwargs)
 # callable_obj: 中间件函数或类
 # kwargs: 中间件配置参数
-MIDDLEWARES = [
+MIDDLEWARES: list[tuple[Any, dict[str, Any]]] = [
     logging.MIDDLEWARE,
     unified_response.MIDDLEWARE,
     process_time.MIDDLEWARE,

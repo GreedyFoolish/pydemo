@@ -4,11 +4,13 @@
 提供异步引擎和 Session 工厂的懒加载单例管理。
 - get_engine(): 返回全局唯一的 AsyncEngine 实例
 - get_session_factory(): 返回全局唯一的 async_sessionmaker 实例
+- run_in_session(fn): 自动管理 session 创建/关闭，适用于非 FastAPI 依赖注入场景
 """
 
 import time
 import weakref
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from typing import TypeVar
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -150,3 +152,46 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             # 任何异常（包括业务异常）→ 回滚事务，然后向上抛出
             await session.rollback()
             raise
+
+
+# 泛型类型变量：让 run_in_session 的返回类型自动匹配回调 fn 的返回类型
+# 例如 fn 返回 InitReadResult，则 run_in_session 也被推导为 InitReadResult
+_T = TypeVar("_T")
+
+
+async def run_in_session(
+    fn: Callable[[AsyncSession], Awaitable[_T]],
+) -> _T:
+    """在非依赖注入场景下执行需要数据库会话的操作。
+
+    适用场景：WebSocket、后台任务、定时任务等无法使用 FastAPI Depends 的地方。
+    与 get_session() 的区别：
+    - get_session() 是 FastAPI 依赖注入函数，自动管理 commit/rollback
+    - run_in_session() 只管理 session 的创建和关闭，事务由调用方控制
+
+    为什么不在这里自动 commit：
+    调用方可能只需要读数据（无需 commit），也可能需要分多次 commit，
+    事务策略因场景而异，统一在这里 commit 反而会限制灵活性。
+
+    使用示例::
+
+        # 读操作：无需 commit
+        result = await run_in_session(
+            lambda db: SomeService(db).query_something()
+        )
+
+        # 写操作：在回调内自行 commit
+        async def _write(db: AsyncSession):
+            svc = SomeService(db)
+            await svc.save_something()
+            await db.commit()
+
+        await run_in_session(_write)
+    """
+    # 从全局工厂创建独立 session，不与 FastAPI 请求共享生命周期
+    db = get_session_factory()()
+    try:
+        return await fn(db)
+    finally:
+        # 无论回调成功还是异常，都确保 session 被关闭、连接归还连接池
+        await db.close()

@@ -32,10 +32,14 @@ db_settings = _DBSettings()
 
 # 测试服务器运行端口，避开常见的 8000/8080 等端口，防止冲突
 TEST_SERVER_PORT = "18000"
+MOCK_AI_PORT = "18001"
 
 # 全局变量，用于追踪子进程和日志文件句柄，以便在会话结束时清理
 _server_process: subprocess.Popen | None = None
 _log_file = None
+
+_mock_ai_process: subprocess.Popen | None = None
+_mock_ai_log_file = None
 
 
 # PostgreSQL 管理操作辅助函数
@@ -136,6 +140,49 @@ def _stop_server():
         _log_file = None
 
 
+def _start_mock_ai_server():
+    global _mock_ai_process, _mock_ai_log_file
+    tmp_dir = Path(__file__).resolve().parents[4] / "tmp"
+    tmp_dir.mkdir(exist_ok=True)
+    _mock_ai_log_file = open(tmp_dir / "mock_ai_server.log", "w")
+    _mock_ai_process = subprocess.Popen(
+        [
+            "uv",
+            "run",
+            "--package",
+            "web-service",
+            "python",
+            str(Path(__file__).resolve().parent / "mock_ai_server.py"),
+            MOCK_AI_PORT,
+        ],
+        stdout=_mock_ai_log_file,
+        stderr=subprocess.STDOUT,
+    )
+    import httpx
+
+    for _ in range(50):
+        try:
+            resp = httpx.get(f"http://localhost:{MOCK_AI_PORT}/health")
+            if resp.status_code == 200:
+                break
+        except Exception:
+            pass
+        time.sleep(0.1)
+    else:
+        raise RuntimeError("Mock AI 服务器启动超时")
+
+
+def _stop_mock_ai_server():
+    global _mock_ai_process, _mock_ai_log_file
+    if _mock_ai_process is not None:
+        _mock_ai_process.terminate()
+        _mock_ai_process.wait(timeout=10)
+        _mock_ai_process = None
+    if _mock_ai_log_file is not None:
+        _mock_ai_log_file.close()
+        _mock_ai_log_file = None
+
+
 def _kill_port_if_occupied(port: int):
     """检查指定端口是否被残留进程占用，如果是则强制杀掉。
 
@@ -205,6 +252,7 @@ def pytest_sessionstart(session):
     # 由于 _force_cleanup 已跳过 settinggroup/settingitem 表，种子只会在
     # 测试库创建时（pytest_sessionstart）需要写入一次，后续再也不会被清。
     _start_server()
+    _start_mock_ai_server()
 
 
 def pytest_collection_modifyitems(config, items):
@@ -221,6 +269,7 @@ def pytest_collection_modifyitems(config, items):
 
 def pytest_sessionfinish(session, exitstatus):
     """pytest 会话结束时执行：关闭服务器 + 清理测试数据库。"""
+    _stop_mock_ai_server()
     _stop_server()
 
     with _create_cur() as cur:
@@ -265,6 +314,28 @@ async def async_client():
 
     async with AsyncClient(base_url=f"http://localhost:{TEST_SERVER_PORT}") as client:
         yield client
+
+
+REGISTER_URL = "/api/auth/register"
+LOGIN_URL = "/api/auth/login"
+
+
+async def _register_and_login(client) -> str:
+    await client.post(
+        REGISTER_URL,
+        json={"username": "e2etestuser", "password": "test123456"},
+    )
+    resp = await client.post(
+        LOGIN_URL,
+        json={"username": "e2etestuser", "password": "test123456"},
+    )
+    return resp.json()["data"]["access_token"]
+
+
+@pytest.fixture
+async def auth_headers(async_client):
+    token = await _register_and_login(async_client)
+    return {"Authorization": f"Bearer {token}"}
 
 
 # TRUNCATE 时跳过的表：系统配置种子数据，由 pytest_sessionstart 统一初始化一次
